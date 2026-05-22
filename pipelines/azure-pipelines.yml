@@ -1,0 +1,83 @@
+# ASP.NET Core
+# Build and test ASP.NET Core projects targeting .NET Core.
+# Add steps that run tests, create a NuGet package, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
+
+trigger:
+- main
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  azureSubscription: 'dotnet-webapp-connection'
+  webAppName: 'dotnet-webapp'
+
+stages:
+
+# ================= BUILD =================
+- stage: Build
+  displayName: 'Build Stage'
+
+  jobs:
+  - job: Build
+    displayName: 'Build Job'
+
+    steps:
+
+    - task: UseDotNet@2
+      displayName: 'Install .NET SDK'
+      inputs:
+        packageType: 'sdk'
+        version: '10.x'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Restore Packages'
+      inputs:
+        command: 'restore'
+        projects: '**/*.csproj'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Build Application'
+      inputs:
+        command: 'build'
+        projects: '**/*.csproj'
+        arguments: '--configuration $(buildConfiguration)'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Publish Application'
+      inputs:
+        command: 'publish'
+        publishWebProjects: true
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+        zipAfterPublish: true
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Artifact'
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+        artifact: 'drop'
+
+
+# ================= DEPLOY =================
+- stage: Deploy
+  displayName: 'Deploy Stage'
+  dependsOn: Build
+
+  jobs:
+  - job: DeployWeb
+    displayName: 'Deploy Job'
+
+    steps:
+
+    - download: current
+      artifact: drop
+
+    - task: AzureWebApp@1
+      displayName: 'Deploy to Azure App Service'
+      inputs:
+        azureSubscription: '$(azureSubscription)'
+        appType: 'webApp'
+        appName: '$(webAppName)'
+        package: '$(Pipeline.Workspace)/drop/**/*.zip'
