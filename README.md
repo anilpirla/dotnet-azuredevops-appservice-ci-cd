@@ -93,6 +93,7 @@ dotnet-webapp-cicd/
 │   └── azure-pipelines.yml
 │
 ├── architecture/
+    ├── screenshots
 │   ├── architecture-diagram.png
 │   └── pipeline-flow.png
 │
